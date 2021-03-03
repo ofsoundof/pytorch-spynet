@@ -34,19 +34,34 @@ for strOption, strArgument in getopt.getopt(sys.argv[1:], '', [ strParameter[2:]
 
 ##########################################################
 
-backwarp_tenGrid = {}
+# backwarp_tenGrid = {}
 
 def backwarp(tenInput, tenFlow):
-	if str(tenFlow.shape) not in backwarp_tenGrid:
-		tenHor = torch.linspace(-1.0 + (1.0 / tenFlow.shape[3]), 1.0 - (1.0 / tenFlow.shape[3]), tenFlow.shape[3]).view(1, 1, 1, -1).expand(-1, -1, tenFlow.shape[2], -1)
-		tenVer = torch.linspace(-1.0 + (1.0 / tenFlow.shape[2]), 1.0 - (1.0 / tenFlow.shape[2]), tenFlow.shape[2]).view(1, 1, -1, 1).expand(-1, -1, -1, tenFlow.shape[3])
+	# if str(tenFlow.shape) not in backwarp_tenGrid:
+	tenHor = torch.linspace(-1.0 + (1.0 / tenFlow.shape[3]),
+							1.0 - (1.0 / tenFlow.shape[3]),
+							tenFlow.shape[3]).view(1, 1, 1, -1).expand(-1, -1, tenFlow.shape[2], -1)
+	tenVer = torch.linspace(-1.0 + (1.0 / tenFlow.shape[2]),
+							1.0 - (1.0 / tenFlow.shape[2]),
+							tenFlow.shape[2]).view(1, 1, -1, 1).expand(-1, -1, -1, tenFlow.shape[3])
 
-		backwarp_tenGrid[str(tenFlow.shape)] = torch.cat([ tenHor, tenVer ], 1).cuda()
+	backwarp_tenGrid = torch.cat([ tenHor, tenVer ], 1).cuda()
+		# print(backwarp_tenGrid.keys())
 	# end
+	# print(backwarp_tenGrid.keys())
+	# flag += 1
+	tenFlow = torch.cat([
+		tenFlow[:, 0:1, :, :] / ((tenInput.shape[3] - 1.0) / 2.0),
+		tenFlow[:, 1:2, :, :] / ((tenInput.shape[2] - 1.0) / 2.0)
+	], 1)
 
-	tenFlow = torch.cat([ tenFlow[:, 0:1, :, :] / ((tenInput.shape[3] - 1.0) / 2.0), tenFlow[:, 1:2, :, :] / ((tenInput.shape[2] - 1.0) / 2.0) ], 1)
-
-	return torch.nn.functional.grid_sample(input=tenInput, grid=(backwarp_tenGrid[str(tenFlow.shape)] + tenFlow).permute(0, 2, 3, 1), mode='bilinear', padding_mode='border', align_corners=False)
+	return torch.nn.functional.grid_sample(
+		input=tenInput,
+		grid=(backwarp_tenGrid+ tenFlow).permute(0, 2, 3, 1),
+		mode='bilinear',
+		padding_mode='border',
+		align_corners=False
+	)
 # end
 
 ##########################################################
@@ -95,10 +110,17 @@ class Network(torch.nn.Module):
 
 		self.netBasic = torch.nn.ModuleList([ Basic(intLevel) for intLevel in range(6) ])
 
-		self.load_state_dict({ strKey.replace('module', 'net'): tenWeight for strKey, tenWeight in torch.hub.load_state_dict_from_url(url='http://content.sniklaus.com/github/pytorch-spynet/network-' + arguments_strModel + '.pytorch', file_name='spynet-' + arguments_strModel).items() })
+		self.load_state_dict({
+			strKey.replace('module', 'net'): tenWeight for strKey, tenWeight in
+			torch.hub.load_state_dict_from_url(
+				url='http://content.sniklaus.com/github/pytorch-spynet/network-' + arguments_strModel + '.pytorch',
+				file_name='spynet-' + arguments_strModel
+			).items()
+		})
 	# end
 
 	def forward(self, tenFirst, tenSecond):
+
 		tenFlow = []
 
 		tenFirst = [ self.netPreprocess(tenFirst) ]
@@ -116,10 +138,16 @@ class Network(torch.nn.Module):
 		for intLevel in range(len(tenFirst)):
 			tenUpsampled = torch.nn.functional.interpolate(input=tenFlow, scale_factor=2, mode='bilinear', align_corners=True) * 2.0
 
-			if tenUpsampled.shape[2] != tenFirst[intLevel].shape[2]: tenUpsampled = torch.nn.functional.pad(input=tenUpsampled, pad=[ 0, 0, 0, 1 ], mode='replicate')
-			if tenUpsampled.shape[3] != tenFirst[intLevel].shape[3]: tenUpsampled = torch.nn.functional.pad(input=tenUpsampled, pad=[ 0, 1, 0, 0 ], mode='replicate')
+			if tenUpsampled.shape[2] != tenFirst[intLevel].shape[2]:
+				tenUpsampled = torch.nn.functional.pad(input=tenUpsampled, pad=[ 0, 0, 0, 1 ], mode='replicate')
+			if tenUpsampled.shape[3] != tenFirst[intLevel].shape[3]:
+				tenUpsampled = torch.nn.functional.pad(input=tenUpsampled, pad=[ 0, 1, 0, 0 ], mode='replicate')
 
-			tenFlow = self.netBasic[intLevel](torch.cat([ tenFirst[intLevel], backwarp(tenInput=tenSecond[intLevel], tenFlow=tenUpsampled), tenUpsampled ], 1)) + tenUpsampled
+			tenFlow = self.netBasic[intLevel](
+				torch.cat([
+					tenFirst[intLevel],
+					backwarp(tenInput=tenSecond[intLevel], tenFlow=tenUpsampled),
+					tenUpsampled], 1)) + tenUpsampled
 		# end
 
 		return tenFlow
@@ -143,8 +171,8 @@ def estimate(tenFirst, tenSecond):
 	intWidth = tenFirst.shape[2]
 	intHeight = tenFirst.shape[1]
 
-	assert(intWidth == 1024) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
-	assert(intHeight == 416) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
+	# assert(intWidth == 1024) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
+	# assert(intHeight == 416) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
 
 	tenPreprocessedFirst = tenFirst.cuda().view(1, 3, intHeight, intWidth)
 	tenPreprocessedSecond = tenSecond.cuda().view(1, 3, intHeight, intWidth)
@@ -170,6 +198,7 @@ if __name__ == '__main__':
 	tenSecond = torch.FloatTensor(numpy.ascontiguousarray(numpy.array(PIL.Image.open(arguments_strSecond))[:, :, ::-1].transpose(2, 0, 1).astype(numpy.float32) * (1.0 / 255.0)))
 
 	tenOutput = estimate(tenFirst, tenSecond)
+	# print(tenOutput.shape)
 
 	objOutput = open(arguments_strOut, 'wb')
 
@@ -178,4 +207,25 @@ if __name__ == '__main__':
 	numpy.array(tenOutput.numpy().transpose(1, 2, 0), numpy.float32).tofile(objOutput)
 
 	objOutput.close()
-# end
+	# from IPython import embed
+	# embed()
+
+	# end
+
+###########################################################
+	# Show the optical flow map
+	# import cv2
+	# import numpy as np
+	# import matplotlib.pyplot as plt
+	#
+	# flow = tenOutput.numpy()
+	# mag, ang = cv2.cartToPolar(flow[0], flow[1])
+	# hsv = np.zeros([flow.shape[1], flow.shape[2], 3], dtype=np.float32)
+	# hsv[..., 2] = 255
+	# hsv[..., 0] = ang * 180 / np.pi / 2
+	# hsv[..., 1] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
+	# hsv = hsv.astype(np.uint8)
+	# rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
+	#
+	# plt.imshow(rgb)
+	# plt.show()
