@@ -42,7 +42,7 @@ if __name__ == '__main__':
             center_frame = read_image(center_frame_path)
             for idx, name in zip(neighbor_idx, neighbor_names):
                 neighbor_frame_path = os.path.join(data_root, input_folder, f'{sequence_idx:03d}/{idx:08d}.png')
-                output_path = os.path.join(data_root, output_folder, f'{sequence_idx:03d}/{frame_idx:08d}_{name}')
+                output_path = os.path.join(data_root, output_folder, f'{sequence_idx:03d}/{frame_idx:08d}_{name}.flo')
                 neighbor_frame = read_image(neighbor_frame_path)
                 flow = estimate(neighbor_frame, center_frame)
 
