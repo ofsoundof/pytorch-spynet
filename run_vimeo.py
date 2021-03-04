@@ -12,7 +12,7 @@ from IPython import embed
 data_root = '/cluster/work/cvl/videosr/vimeo90k'
 meta_info = os.path.expanduser('~/projects/video_transformer/basicsr/data/meta_info/meta_info_Vimeo90K_train_GT.txt')
 input_folder = 'vimeo_septuplet_matlabLRx4/sequences'
-output_folder = 'vimeo_septuplet_matlabLRx4_flow/sequences'
+output_folder = 'vimeo_septuplet_matlabLRx4_flow2/sequences'
 num_frame = 7
 num_half_frame = num_frame // 2
 center_frame_idx = num_half_frame + 1
