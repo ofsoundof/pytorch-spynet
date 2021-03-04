@@ -4,11 +4,11 @@ import PIL.Image
 import os
 from run import estimate
 from basicsr.utils.flow_util import flowwrite
-# from IPython import embed
+from IPython import embed
 
 
-# data_root = '/home/thor/projects/data/videosr/REDS'
-data_root = '/cluster/work/cvl/videosr/REDS/'
+data_root = '/home/thor/projects/data/videosr/REDS'
+# data_root = '/cluster/work/cvl/videosr/REDS/'
 input_folder = 'train_sharp_bicubic/X4'
 output_folder = 'train_sharp_bicubic_flow/X4'
 num_frame = 5
@@ -60,8 +60,8 @@ if __name__ == '__main__':
                 #
                 # plt.imshow(rgb)
                 # plt.show()
-
-                flowwrite(flow.permute(1, 2, 0).numpy(), output_path)
+                flow = flow.permute(1, 2, 0).numpy() # 180 x 320 x 2
+                flowwrite(flow, output_path)
                 # embed(); exit()
 
         #     print(center_frame_path)
